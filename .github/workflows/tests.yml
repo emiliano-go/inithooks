@@ -28,6 +28,31 @@ jobs:
       threshold: 95
       package: libinithooks,bin
       tests: tests
+  keel:
+    # The reader asks keel's own validator when keel is installed, and the
+    # differential, property and end-to-end tests skip without a checkout
+    # (tests/helpers.py keel_validate reads KEEL_SRC). The reusable python
+    # job above checks out one repository only, so this job fetches keel
+    # beside inithooks and points KEEL_SRC at it. It is the check that the
+    # fix of inithooks#31 is actually exercised: appliance, installation,
+    # overlays and monitor must be accepted by keel and by this reader.
+    runs-on: keel-host
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: Keel-Linux/keel
+          ref: main
+          path: keel
+      - name: Python in a virtual environment
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+      - name: Install test tools
+        run: python -m pip install --quiet pytest pyyaml
+      - name: Run the suite against keel
+        run: KEEL_SRC="$GITHUB_WORKSPACE/keel" PYTHONPATH=. python -m pytest -q tests
   # A change that ships must come with a changelog entry, or it cannot be
   # installed and never reaches an appliance. The rule and its tests are
   # bin/require-changelog of the .github repository. The check is
